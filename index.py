@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from bs4 import beautifulsoup4
+from bs4 import BeautifulSoup
 import requests
 
 app = FastAPI()
@@ -22,7 +22,7 @@ async def search(loja: str, produto: str):
     response = requests.get(url_base + produto)
     response.raise_for_status() # lança uma exceção se houver erro na resposta
 
-    site = beautifulsoup4(response.text, 'html.parser')
+    site = BeautifulSoup(response.text, 'html.parser')
 
     produtos = []
     if loja == 'mercadolivre':

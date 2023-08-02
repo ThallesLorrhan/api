@@ -65,15 +65,13 @@ async def search(loja: str, produto: str):
 
         if loja == 'mercadolivre':
             titulo_element = produto.select_one('.ui-search-item__title')
-            titulo = titulo_element.text if titulo_element else 'Produto sem título'
+            titulo = titulo_element.text.strip() if titulo_element else 'Produto sem título'
             link_element = produto.select_one('.ui-search-link')
             link = link_element['href'] if link_element else ''
-            preco_element = produto.select_one('.price-tag-fraction')
-            preco_decimal_element = produto.select_one('.price-tag-cents')
-            preco_decimal = f",{preco_decimal_element.text}" if preco_decimal_element else ''
-            preco = f"R${preco_element.text}{preco_decimal}" if preco_element else 'Preço não disponível'
+            preco_element = produto.select_one('.ui-search-price__second-line .andes-money-amount__fraction')
+            preco = f"R${preco_element.text}" if preco_element else 'Preço não disponível'
             img_element = produto.select_one('.ui-search-result-image__element')
-            img = img_element['src'] if img_element else ''
+            img = img_element.get('data-src') if img_element else ''
 
         elif loja == 'zonasul':
             titulo_element = produto.select_one('.vtex-product-summary-2-x-productBrand vtex-product-summary-2-x-brandName t-body')

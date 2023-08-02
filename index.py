@@ -44,7 +44,7 @@ async def search(loja: str, produto: str):
 
     produtos = []
     if loja == 'mercadolivre':
-        produtos = site.select('.ui-search-result__wrapper shops__result-wrapper')
+        produtos = site.select('.ui-search-result__wrapper')
     elif loja == 'zonasul':
         produtos = site.select('.vtex-search-result-3-x-galleryItem vtex-search-result-3-x-galleryItem--small pa4')
     elif loja == 'prezunic':
@@ -52,8 +52,7 @@ async def search(loja: str, produto: str):
     elif loja == 'extra':
         produtos = site.select('.sc-5fec12f4-0 cxOoNz sc-f86ccf37-1 esRPia')
     elif loja == 'paodeacucar':
-        div_mae = site.find('div', class_='MuiGrid-root gridstyles-sc-6scn59-0 kZBCvb MuiGrid-container MuiGrid-spacing-xs-2')
-        produtos = div_mae.find('div', class_='MuiGrid-root gridstyles-sc-6scn59-0 dmpXNW MuiGrid-item MuiGrid-grid-xs-12 MuiGrid-grid-sm-6 MuiGrid-grid-md-4 MuiGrid-grid-lg-3 MuiGrid-grid-xl-3')
+        produtos = site.select('.product-cardstyles__CardStyled-sc-1uwpde0-0.bTCFJV.cardstyles__Card-yvvqkp-0.gXxQWo')
     elif loja == 'carrefour':
         produtos = site.select(".relative flex flex-col h-full rounded-lg md:rounded-none //// shadow-regular bg-white md:shadow-none md:border md:border[#F2F2F2] pb-0")
 
@@ -65,13 +64,16 @@ async def search(loja: str, produto: str):
         img = ''
 
         if loja == 'mercadolivre':
-            titulo = produto.select_one('.ui-search-item__title shops__item-title').text
-            link = produto.select_one('.ui-search-item__group__element shops__items-group-details ui-search-link')['href']
-            real = produto.select_one('.andes-money-amount__fraction').text
-            centavos = produto.select_one('.price-tag-cents')
-            preco = f"R${real},{centavos.text}" if centavos else f"R${real}"
-            img_tag = produto.select_one('.ui-search-link')
-            img = img_tag['src'] if img_tag else None
+            titulo_element = produto.select_one('.ui-search-item__title')
+            titulo = titulo_element.text if titulo_element else 'Produto sem título'
+            link_element = produto.select_one('.ui-search-link')
+            link = link_element['href'] if link_element else ''
+            preco_element = produto.select_one('.price-tag-fraction')
+            preco_decimal_element = produto.select_one('.price-tag-cents')
+            preco_decimal = f",{preco_decimal_element.text}" if preco_decimal_element else ''
+            preco = f"R${preco_element.text}{preco_decimal}" if preco_element else 'Preço não disponível'
+            img_element = produto.select_one('.ui-search-result-image__element')
+            img = img_element['src'] if img_element else ''
 
         elif loja == 'zonasul':
             titulo_element = produto.select_one('.vtex-product-summary-2-x-productBrand vtex-product-summary-2-x-brandName t-body')
@@ -128,14 +130,10 @@ async def search(loja: str, produto: str):
             img = img_tag['src'] if img_tag else None
 
         elif loja == 'paodeacucar':
-            titulo = produto.select_one('.product-cardstyles__Link-sc-1uwpde0-9 bSQmwP hyperlinkstyles__Link-j02w35-0 coaZwR').text
-            link_element = produto.select_one('.hyperlinkstyles__Link-j02w35-0 hbKsSa')
-            link = 'https://www.paodeacucar.com'+link_element['href'] if link_element else ''
-            real = produto.select_one('.price-tag-normalstyle__LabelPrice-sc-1co9fex-0 lkWvql').text
-            centavos = produto.select_one(None)
-            preco = f"R${real},{centavos.text}" if centavos else f"R${real}"
-            img_tag = produto.select_one('.product-cardstyles__Image-sc-1uwpde0-3 beZujn')
-            img = img_tag['src'] if img_tag else None
+            titulo = produto.find('a', class_='product-cardstyles__Link-sc-1uwpde0-9.bSQmwP.hyperlinkstyles__Link-j02w35-0.coaZwR').text
+            link = produto.find('a', class_='product-cardstyles__Link-sc-1uwpde0-9.bSQmwP.hyperlinkstyles__Link-j02w35-0.coaZwR')['href']
+            preco = produto.find('div', class_='price-tag-normalstyle__LabelPrice-sc-1co9fex-0.lkWvql').text
+            img = produto.find('img', class_='product-cardstyles__Image-sc-1uwpde0-3.beZujn')['src']
 
         elif loja == 'carrefour':
             titulo = produto.select_one('.add-to-cart__button bg-[#1E5BC6] text-xs md:text-sm uppercase w-full h-[30px] md:h-10 flex items-center justify-center rounded-lg text-xs text-white md:bg-blue-brand md:hover:bg-blue-doger md:uppercase md:text-sm md:rounded-[5px]').text
@@ -208,4 +206,3 @@ async def encarte(loja: str):
 
 if __name__ == "__main__":
     uvicorn.run(app, port=8000)
-

@@ -44,6 +44,8 @@ async def search(loja: str, produto: str):
         url_base = f'https://www.extra.com.br/{produto}/b'
     elif loja == 'carrefour':
         url_base = f'https://mercado.carrefour.com.br/s?q='
+    elif loja == 'redesuperbom':
+        url_base = f'https://www.redesuperbom.com.br/busca/?q='
     else:
         return {"error": "Loja não encontrada."}
 
@@ -51,7 +53,7 @@ async def search(loja: str, produto: str):
         "loja": loja.capitalize(),
         "produtos": [],
     }
-    if loja in ['mercadolivre', 'zonasul', 'prezunic', 'paodeacucar', 'carrefour']:
+    if loja in ['mercadolivre', 'zonasul', 'prezunic', 'paodeacucar', 'carrefour', 'redesuperbom']:
         response = requests.get(url_base + produto, headers=headers)
     elif loja == ['extra']:
         response = requests.get(url_base)
@@ -74,6 +76,8 @@ async def search(loja: str, produto: str):
         produtos = site.select('.product-cardstyles__CardStyled-sc-1uwpde0-0.bTCFJV.cardstyles__Card-yvvqkp-0.gXxQWo')
     elif loja == 'carrefour':
         produtos = site.select('li[style="order: 2;"] article')
+    elif loja == 'redesuperbom':
+        produtos = site.select('.item-produto')
 
 
     for produto in produtos:
@@ -140,6 +144,16 @@ async def search(loja: str, produto: str):
                 link = 'https://mercado.carrefour.com.br' + produto.select_one('h3 a[data-testid="product-link"]')['href']
                 preco = produto.select_one('span[data-test-id="price"]').text.strip()
                 img = produto.select_one('img[data-product-card-image="true"]')['src']
+
+        elif loja == 'redesuperbom':
+                titulo_element = produto.select_one('.item-produto__name')
+                titulo = titulo_element.text.strip() if titulo_element else 'Produto sem título'
+                link_element = produto.select_one('.item-produto__inner.js-product.js-trk-select-content.js-show-over-add')
+                link = 'https://www.redesuperbom.com.br/' + link_element['href'] if link_element else ''
+                preco_element = produto.select_one('.item-produto__price-por')
+                preco = f"R${preco_element.text.replace('R$', '').strip()}" if preco_element else 'Preço não disponível'
+                img_element = produto.select_one('.item-produto__img-main.lazyload')
+                img = img_element.get('src') if img_element else ''
 
         produto_dict = {
             'titulo': titulo,

@@ -90,7 +90,7 @@ async def search(loja: str, produto: str):
             preco_element = produto.select_one('.ui-search-price__second-line .andes-money-amount__fraction')
             preco = f"R${preco_element.text}" if preco_element else 'Preço não disponível'
             img_element = produto.select_one('.ui-search-result-image__element')
-            img = img_element.get('data-src') if img_element else ''
+            img = img_element.get('src') if img_element else ''
 
         elif loja == 'zonasul':
             titulo = produto.find('h2', class_='vtex-product-summary-2-x-productNameContainer mv0 vtex-product-summary-2-x-nameWrapper overflow-hidden c-on-base f5').text.strip()

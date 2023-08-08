@@ -161,27 +161,16 @@ async def search(loja: str, produto: str):
 
         elif loja == 'superprix':
                 titulo_element = produto.select_one('h3 a')
-                if titulo_element:
-                    titulo = titulo_element.text.strip()
-                    
-                    link_element = produto.select_one('a.productImage')
-                    link = link_element['href'] if link_element else ''
-                    
-                    preco_element = produto.select_one('div.newPrice--fake')
-                    preco = f"R${preco_element.text.replace(',', '.').strip()}" if preco_element else 'Preço não disponível'
-                    
-                    img_element = produto.select_one('img.productImage')
-                    img = img_element['src'] if img_element else ''
-                    
-                    if titulo and link and preco:  # Verifica se as informações essenciais estão presentes
-                        produto_data = {
-                            "titulo": titulo,
-                            "link": link,
-                            "preco": preco,
-                            "img": img,
-                            "loja": loja,
-                        }
-                        result_dict["produtos"].append(produto_data)
+                titulo = titulo_element.text.strip() if titulo_element else 'Produto sem título'
+                
+                link_element = produto.select_one('a.productImage')
+                link = link_element['href'] if link_element else ''
+                
+                preco_element = produto.select_one('div.newPrice--fake')
+                preco = f"R${preco_element.text.replace(',', '.').strip()}" if preco_element else 'Preço não disponível'
+                
+                img_element = produto.select_one('img.productImage')
+                img = img_element['src'] if img_element else ''
 
         produto_dict = {
             'titulo': titulo,

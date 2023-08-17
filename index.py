@@ -4,11 +4,10 @@ import requests
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 import random
-
+from lxml import html
 
 app = FastAPI()
 
-# Configure Cross Origin Resource Sharing (CORS) parameters.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -46,6 +45,8 @@ async def search(loja: str, produto: str):
         url_base = f'https://www.redesuperbom.com.br/busca/?q='
     elif loja == 'superprix':
         url_base = f'https://www.superprix.com.br/'
+    elif loja == 'atacadao':
+        url_base = f'https://www.atacadao.com.br/catalogo/?queryString='
     else:
         return {"error": "Loja não encontrada."}
 
@@ -53,31 +54,39 @@ async def search(loja: str, produto: str):
         "loja": loja.capitalize(),
         "produtos": [],
     }
-    if loja in ['mercadolivre','zonasul', 'prezunic', 'paodeacucar', 'carrefour', 'redesuperbom', 'superprix']:
+    if loja in ['mercadolivre', 'prezunic', 'paodeacucar', 'carrefour', 'redesuperbom', 'superprix', 'atacadao']:
         response = requests.get(url_base + produto, headers=headers)
+        site = BeautifulSoup(response.text, 'html.parser')
+    elif loja in ['zonasul']:
+        response = requests.get(url_base + produto, headers=headers)
+        site = html.fromstring(response.content)
 
+    
+        
     response.raise_for_status() # lança uma exceção se houver erro na resposta
 
-    site = BeautifulSoup(response.text, 'html.parser')
+    
+    
+
 
     produtos = []
     if loja == 'mercadolivre':
         produtos = site.select('.ui-search-result__wrapper')
-    elif loja == 'zonasul':
-        produtos = site.select('div', class_='vtex-product-summary-2-x-container vtex-product-summary-2-x-containerNormal row flex-row h-100 w-100')
+    if loja == 'zonasul':
+        produtos = site.cssselect('.vtex-search-result-3-x-galleryItem')
     elif loja == 'prezunic':
         produtos = site.select('.vtex-search-result-3-x-galleryItem.vtex-search-result-3-x-galleryItem--normal.vtex-search-result-3-x-galleryItem--default.pa4')    
     elif loja == 'paodeacucar':
         produtos = site.select('div', class_='product-cardstyles__Card-sc-1uwpde0-6')
     elif loja == 'carrefour':
-        produtos = site.select('.flex.h-full.p-2.md:p-[10px].cursor-pointer.overflow-hidden.flex-col')
+        produtos = site.select('li[style="order: 1;"] article')
     elif loja == 'redesuperbom':
         produtos = site.select('.item-produto')
     elif loja == 'superprix':
         produtos = site.select('li', class_='mercearia-|-superprix-supermercado-online ok')
+    elif loja == 'atacadao':
+        produtos = site.select('div', class_='product-box')
         
-    
-
 
     for produto in produtos:
         titulo = ''
@@ -96,18 +105,17 @@ async def search(loja: str, produto: str):
             img = img_element.get('src') if img_element else ''
 
         elif loja == 'zonasul':
-            titulo_element = produto.find('h2', class_='vtex-product-summary-2-x-productBrand vtex-product-summary-2-x-brandName t-body')
-            titulo = titulo_element.text.strip() if titulo_element else 'Produto sem título'
+            titulo_element = produto.cssselect('.vtex-product-summary-2-x-productBrand')[0]
+            preco_element = produto.cssselect('.zonasul-zonasul-store-0-x-currencyInteger')[0]
+            decimal_element = produto.cssselect('.zonasul-zonasul-store-0-x-currencyDecimal')[0]
+            imagem_element = produto.cssselect('.vtex-product-summary-2-x-image')[0]
+            link_element = produto.cssselect('.vtex-product-summary-2-x-clearLink')[0]
 
-            link_element = produto.find('a', class_='vtex-product-summary-2-x-clearLink h-100 flex flex-column')
-            link = 'https://www.zonasul.com.br' + link_element['href'] if link_element else ''
-
-            preco_element = produto.find('span', class_='zonasul-zonasul-store-0-x-currencyInteger')
-            preco_centavos_element = produto.find('span', class_='zonasul-zonasul-store-0-x-currencyFraction')
-            preco = f"R${preco_element.text},{preco_centavos_element.text}" if preco_element and preco_centavos_element else 'Preço não disponível'
-
-            img_element = produto.find('img', class_='vtex-product-summary-2-x-imageNormal vtex-product-summary-2-x-image')
-            img = img_element['src'] if img_element else ''
+            titulo = titulo_element.text_content().strip()
+            preco = f"R$ {preco_element.text_content().strip()}"
+            img = imagem_element.get('src')
+            link = 'https://www.zonasul.com.br' + link_element.get('href')
+            
 
         elif loja == 'prezunic':
             titulo_element = produto.select_one('.prezunic-prezunic-components-0-x-ProductName.false')
@@ -139,15 +147,24 @@ async def search(loja: str, produto: str):
 
         elif loja == 'carrefour':
             titulo_element = produto.select_one('h3 span.overflow-hidden.text-ellipsis.-webkit-box.-webkit-line-clamp-3.-webkit-box-orient-vertical.text-[13px].text-monet-400 a')
-            titulo = titulo_element.get_text(strip=True) if titulo_element else 'Produto sem título'
+            titulo = titulo_element['title'] if titulo_element else 'Produto sem título'
+            produto["titulo"] = titulo
 
-            preco_element = produto.select_one('span[data-test-id="price"]')
-            preco = preco_element.get_text(strip=True) if preco_element else 'Preço não disponível'
-
-            img_element = produto.select_one('img[data-product-card-image="true"]')['src'] if produto.select_one('img[data-product-card-image="true"]') else ''
-
-            link_element = produto.select_one('a[data-testid="product-link"]')
+            link_element = produto.select_one('h3 span.overflow-hidden.text-ellipsis.-webkit-box.-webkit-line-clamp-3.-webkit-box-orient-vertical.text-[13px].text-monet-400 a')
             link = link_element['href'] if link_element else ''
+            produto["link"] = link
+
+            preco_element = produto.select_one('span.text-base.text-blue-royal.font-medium')
+            preco = preco_element.text.strip() if preco_element else 'Preço não disponível'
+            produto["preco"] = preco
+
+            img_element = produto.select_one('div[data-product-card-image="true"] img')
+            img = img_element['src'] if img_element else ''
+            produto["img"] = img
+
+            produto["loja"] = loja.lower()
+
+            result_dict["produtos"].append(produto)
             
         elif loja == 'redesuperbom':
                 titulo_element = produto.select_one('.item-produto__name')
@@ -172,13 +189,22 @@ async def search(loja: str, produto: str):
                 img_element = produto.select_one('img.productImage')
                 img = img_element['src'] if img_element else ''
 
+        elif loja == 'atacadao':
+                titulo_element = produto.find('h2', class_='product-box__name')
+                titulo = titulo_element.text.strip() if titulo_element else "Título não encontrado"
+                
+                preco_element = produto.find('span', class_='js-product-box__price')
+                preco = preco_element.text.strip() if preco_element else "Preço não encontrado"
+                
+                img_element = produto.find('img')
+                img = img_element['src'] if img_element else "Imagem não encontrada"
+
         produto_dict = {
             'titulo': titulo,
             'link': link,
             'preco': preco,
             'img': img,
             'loja':loja
-
         }
 
         result_dict['produtos'].append(produto_dict)

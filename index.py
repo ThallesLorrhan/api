@@ -54,16 +54,16 @@ async def search(loja: str, produto: str):
         "loja": loja.capitalize(),
         "produtos": [],
     }
-    if loja in ['mercadolivre', 'prezunic', 'paodeacucar', 'carrefour', 'redesuperbom', 'superprix', 'atacadao']:
+    if loja in ['mercadolivre', 'prezunic',  'redesuperbom',  ]:
         response = requests.get(url_base + produto, headers=headers)
         site = BeautifulSoup(response.text, 'html.parser')
-    elif loja in ['zonasul']:
+    elif loja in ['zonasul', 'paodeacucar', 'carrefour', 'atacadao', 'superprix']:
         response = requests.get(url_base + produto, headers=headers)
         site = html.fromstring(response.content)
 
     
         
-    response.raise_for_status() # lança uma exceção se houver erro na resposta
+    response.raise_for_status() 
 
     
     
@@ -77,15 +77,15 @@ async def search(loja: str, produto: str):
     elif loja == 'prezunic':
         produtos = site.select('.vtex-search-result-3-x-galleryItem.vtex-search-result-3-x-galleryItem--normal.vtex-search-result-3-x-galleryItem--default.pa4')    
     elif loja == 'paodeacucar':
-        produtos = site.select('div', class_='product-cardstyles__Card-sc-1uwpde0-6')
+        produtos = site.cssselect('.product-cardstyles__Container-sc-1uwpde0-1 hNTkow')
     elif loja == 'carrefour':
         produtos = site.select('li[style="order: 1;"] article')
     elif loja == 'redesuperbom':
         produtos = site.select('.item-produto')
     elif loja == 'superprix':
-        produtos = site.select('li', class_='mercearia-|-superprix-supermercado-online ok')
+        produtos = site.cssselect('li.mercearia-|-superprix-supermercado-online.ok')
     elif loja == 'atacadao':
-        produtos = site.select('div', class_='product-box')
+        produtos = site.cssselect('.product-box')
         
 
     for produto in produtos:
@@ -107,12 +107,12 @@ async def search(loja: str, produto: str):
         elif loja == 'zonasul':
             titulo_element = produto.cssselect('.vtex-product-summary-2-x-productBrand')[0]
             preco_element = produto.cssselect('.zonasul-zonasul-store-0-x-currencyInteger')[0]
-            decimal_element = produto.cssselect('.zonasul-zonasul-store-0-x-currencyDecimal')[0]
+            decimal_element = produto.cssselect('.zonasul-zonasul-store-0-x-currencyFraction')[0]
             imagem_element = produto.cssselect('.vtex-product-summary-2-x-image')[0]
             link_element = produto.cssselect('.vtex-product-summary-2-x-clearLink')[0]
 
             titulo = titulo_element.text_content().strip()
-            preco = f"R$ {preco_element.text_content().strip()}"
+            preco = f"R$ {preco_element.text_content().strip()},{decimal_element.text_content().strip()}"
             img = imagem_element.get('src')
             link = 'https://www.zonasul.com.br' + link_element.get('href')
             
@@ -136,14 +136,16 @@ async def search(loja: str, produto: str):
             img = img_tag['src'] if img_tag else None
 
         elif loja == 'paodeacucar':
-            titulo_element = produto.select_one('.product-cardstyles__Link-sc-1uwpde0-9.bSQmwP.hyperlinkstyles__Link-j02w35-0.coaZwR')
-            titulo = titulo_element.text.strip() if titulo_element else 'Produto sem título'
-            link_element = produto.select_one('.hyperlinkstyles__Link-j02w35-0.hbKsSa')
-            link = 'https://www.paodeacucar.com/' + link_element['href'] if link_element else ''
-            preco_element = produto.select_one('.price-tag-normalstyle__LabelPrice-sc-1co9fex-0.lkWvql')
-            preco = f"R${preco_element.text.replace('R$', '').strip()}" if preco_element else 'Preço não disponível'
-            img_element = produto.select_one('.product-cardstyles__Image-sc-1uwpde0-3.beZujn')
-            img = img_element.get('src') if img_element else ''
+            titulo_element = produto.cssselect('.product-cardstyles__Link-sc-1uwpde0-9.bSQmwP.hyperlinkstyles__Link-j02w35-0.coaZwR')
+            preco_element = produto.cssselect('.price-tag-normalstyle__LabelPrice-sc-1co9fex-0.lkWvql')
+            imagem_element = produto.cssselect('.product-cardstyles__Image-sc-1uwpde0-3.beZujn')
+            link_element = produto.cssselect('.hyperlinkstyles__Link-j02w35-0.hbKsSa')
+
+            titulo = titulo_element[0].text_content().strip() if titulo_element else 'Título não encontrado'
+            preco = f"R$ {preco_element[0].text_content().strip()}" if preco_element else 'Preço não disponível'
+            img = imagem_element[0].get('src') if imagem_element else 'Imagem não disponível'
+            link = 'https://www.zonasul.com.br' + link_element[0].get('href') if link_element else 'Link não disponível'
+
 
         elif loja == 'carrefour':
             titulo_element = produto.select_one('h3 span.overflow-hidden.text-ellipsis.-webkit-box.-webkit-line-clamp-3.-webkit-box-orient-vertical.text-[13px].text-monet-400 a')
@@ -177,27 +179,33 @@ async def search(loja: str, produto: str):
                 img = img_element.get('src') if img_element else ''
 
         elif loja == 'superprix':
-                titulo_element = produto.select_one('h3 a')
-                titulo = titulo_element.text.strip() if titulo_element else 'Produto sem título'
+            titulo_element = produto.select_one('h3 a')
+            link_element = produto.select_one('a.productImage')
+            preco_element = produto.select_one('.newPrice--fake')
+            img_element = produto.select_one('.product-cardstyles__Image-sc-1uwpde0-3 beZujn')
+            
+            if not (titulo_element and link_element and preco_element and img_element):
+                continue  # Pular para o próximo produto se algum elemento não for encontrado
                 
-                link_element = produto.select_one('a.productImage')
-                link = link_element['href'] if link_element else ''
-                
-                preco_element = produto.select_one('div.newPrice--fake')
-                preco = f"R${preco_element.text.replace(',', '.').strip()}" if preco_element else 'Preço não disponível'
-                
-                img_element = produto.select_one('img.productImage')
-                img = img_element['src'] if img_element else ''
+            titulo = titulo_element.text.strip()
+            link = link_element['href']
+            preco_parts = preco_element.text.strip().split(',')
+            preco = f"R$ {preco_parts[0]}.{preco_parts[1]}"
+            img = img_element['src']
 
         elif loja == 'atacadao':
-                titulo_element = produto.find('h2', class_='product-box__name')
-                titulo = titulo_element.text.strip() if titulo_element else "Título não encontrado"
-                
-                preco_element = produto.find('span', class_='js-product-box__price')
-                preco = preco_element.text.strip() if preco_element else "Preço não encontrado"
-                
-                img_element = produto.find('img')
-                img = img_element['src'] if img_element else "Imagem não encontrada"
+            titulo_element = produto.select_one('.product-box__name')
+            link_element = produto.select_one('.product-box__img a')
+            preco_element = produto.select_one('.product-box__price--number')
+            img_element = produto.select_one('.product-box__img img')
+            loja_element = produto.select_one('.product-box__supplier .js-product-box__supplier')
+
+            titulo = titulo_element.text.strip() if titulo_element else 'Título não encontrado'
+            link = 'https://www.atacadao.com.br' + link_element['href'] if link_element else 'Link não disponível'
+            preco = f"R$ {preco_element.text.strip()}" if preco_element else 'Preço não disponível'
+            img = img_element['src'] if img_element else 'Imagem não disponível'
+            loja = loja_element.text.strip() if loja_element else 'Loja não encontrada'
+
 
         produto_dict = {
             'titulo': titulo,
